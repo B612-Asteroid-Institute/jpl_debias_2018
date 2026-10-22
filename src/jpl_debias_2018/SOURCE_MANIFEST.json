@@ -7,7 +7,24 @@
     "archive_name": "debias_2018.tgz",
     "archive_size_bytes": 9852628,
     "archive_sha256": "288132cefea7f1bdf0989782db1173948dd7dfef7da31910be90b16b73cfea6c",
-    "http_last_modified": "2023-03-01T22:24:39Z"
+    "http_last_modified": "2023-03-01T22:24:39Z",
+    "archive_members": {
+      "README.txt": {
+        "size_bytes": 1606,
+        "sha256": "946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec",
+        "packaged_as": "UPSTREAM_README.txt"
+      },
+      "bias.dat": {
+        "size_bytes": 37161151,
+        "sha256": "ef6a50830bb83d8b1161e7acb391eed988ea9708e9fbcccc0c834da6109476e3",
+        "packaged_as": "bias.dat"
+      },
+      "tiles.dat": {
+        "size_bytes": 1622072,
+        "sha256": "ccb313f0f04f49f0158b915b7ca997b91bba50192a808ba590a32e99a91eefa6",
+        "packaged_as": null
+      }
+    }
   },
   "resources": {
     "bias.dat": {
@@ -20,8 +37,32 @@
       "nside": 64,
       "npix": 49152,
       "catalog_codes": [
-        "a", "b", "c", "d", "e", "g", "i", "j", "l", "m", "n", "o", "p",
-        "q", "r", "t", "u", "v", "w", "L", "N", "Q", "R", "S", "U", "Y"
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "g",
+        "i",
+        "j",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "t",
+        "u",
+        "v",
+        "w",
+        "L",
+        "N",
+        "Q",
+        "R",
+        "S",
+        "U",
+        "Y"
       ]
     },
     "UPSTREAM_README.txt": {
@@ -29,5 +70,13 @@
       "size_bytes": 1606,
       "sha256": "946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec"
     }
+  },
+  "redistribution": {
+    "status": "blocked",
+    "public_redistribution_authorized": false,
+    "data_license": null,
+    "authorization_reference": null,
+    "code_and_documentation_license": "MIT (scoped by LICENSE)",
+    "reason": "The upstream archive contains no explicit license and this repository contains no applicable JPL/Caltech authorization for public redistribution of the exact data bytes."
   }
 }

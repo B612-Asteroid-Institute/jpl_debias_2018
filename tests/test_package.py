@@ -53,13 +53,13 @@ def test_manifest_agrees_with_public_constants_and_files() -> None:
     manifest = _manifest()
     assert manifest["schema_version"] == 1
     assert manifest["package_version"] == data.__version__
-    assert manifest["source"] == {
-        "url": data.SOURCE_URL,
-        "archive_name": "debias_2018.tgz",
-        "archive_size_bytes": data.SOURCE_ARCHIVE_SIZE_BYTES,
-        "archive_sha256": data.SOURCE_ARCHIVE_SHA256,
-        "http_last_modified": data.SOURCE_ARCHIVE_LAST_MODIFIED,
-    }
+    source = manifest["source"]
+    assert source["url"] == data.SOURCE_URL
+    assert source["archive_name"] == "debias_2018.tgz"
+    assert source["archive_size_bytes"] == data.SOURCE_ARCHIVE_SIZE_BYTES
+    assert source["archive_sha256"] == data.SOURCE_ARCHIVE_SHA256
+    assert source["http_last_modified"] == data.SOURCE_ARCHIVE_LAST_MODIFIED
+    assert source["archive_members"]["bias.dat"]["sha256"] == data.BIAS_DAT_SHA256
     bias = manifest["resources"]["bias.dat"]
     assert bias["sha256"] == data.BIAS_DAT_SHA256
     assert bias["size_bytes"] == data.BIAS_DAT_SIZE_BYTES
@@ -85,3 +85,16 @@ def test_distribution_has_no_runtime_dependencies() -> None:
     requirements = distribution.requires or []
     assert all("extra ==" in requirement for requirement in requirements)
     assert metadata.version("jpl-debias-2018") == data.__version__
+
+
+def test_redistribution_and_distribution_license_fail_closed() -> None:
+    redistribution = _manifest()["redistribution"]
+    assert redistribution["status"] == "blocked"
+    assert redistribution["public_redistribution_authorized"] is False
+    assert redistribution["data_license"] is None
+    assert redistribution["authorization_reference"] is None
+
+    distribution = metadata.distribution("jpl-debias-2018")
+    assert distribution.metadata.get_all("License") is None
+    assert distribution.metadata.get_all("License-Expression") is None
+    assert set(distribution.metadata.get_all("License-File") or []) == {"LICENSE", "NOTICE"}

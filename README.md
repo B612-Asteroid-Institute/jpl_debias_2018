@@ -1,5 +1,13 @@
 # jpl-debias-2018
 
+> [!CAUTION]
+> **PUBLIC REDISTRIBUTION IS BLOCKED.** The JPL archive contains no explicit
+> license, and this repository contains no applicable JPL/Caltech authorization
+> to reproduce or publicly redistribute the exact bundled data bytes. Do not
+> push this candidate to a public source repository, publish it to PyPI, upload
+> release artifacts, or create a public release until explicit authorization
+> has been obtained and reviewed. See [`NOTICE`](NOTICE).
+
 `jpl-debias-2018` is a data-only Python package containing the JPL Solar
 System Dynamics EFCC18 astrometric catalog-debias table. It follows the same
 installed-resource convention as the Asteroid Institute kernel packages:
@@ -7,8 +15,8 @@ import the package, then pass its exported filesystem path to the consumer.
 
 The package contains no orbit-determination implementation, has no runtime
 dependencies, performs no network access at import or runtime, and does not
-recompute data identity at import. The table is stored byte-for-byte as JPL
-published it.
+recompute data identity at import. The candidate retains the table byte-for-byte as obtained from JPL; provenance
+does not itself grant redistribution rights.
 
 ## Data identity
 
@@ -32,7 +40,7 @@ table is identified by the hash above.
 
 ## Installation
 
-After a reviewed release is published:
+Only after applicable redistribution authorization is documented and a reviewed release is published:
 
 ```bash
 python -m pip install jpl-debias-2018
@@ -127,20 +135,39 @@ JPL changes the archive, it fails closed. Review the upstream changes first,
 then deliberately update the expected manifest and tests in the same commit;
 do not weaken or bypass the hash gate.
 
-Build and verify release artifacts with:
+The release source has a checked exact inventory. After intentional source
+changes, regenerate it, inspect the diff, and commit it with the change:
 
 ```bash
-python -m build
-python tools/verify_artifacts.py dist/*.whl dist/*.tar.gz
-twine check dist/*
+python tools/update_source_inventory.py
 ```
 
-CI only builds, tests, and uploads workflow artifacts. It has no PyPI
-publisher credentials or publication job.
+Official artifacts must be built from a clean commit through the deterministic
+builder, never with a bare `python -m build` release command:
+
+```bash
+python tools/build_release.py
+python tools/verify_artifacts.py dist/*.whl dist/*.tar.gz
+python -m twine check dist/*
+python tools/check_reproducible_builds.py
+```
+
+The final command clones the clean commit twice, builds independently, and
+requires byte-identical wheel and sdist SHA-256 values. The builder pins the
+backend, fixes `SOURCE_DATE_EPOCH`, canonicalizes ZIP and tar/gzip metadata,
+validates every inventoried source and packaged identity file, and rejects
+dirty source by default.
+
+CI is pinned, read-only, artifact-only, and has no PyPI publisher credentials
+or publication job. Because its artifacts contain the blocked data bytes, the
+public repository and its workflows must not be initialized until applicable
+redistribution authorization is documented.
 
 ## Licensing and attribution
 
-The package code and Institute-authored documentation use the MIT license.
-The JPL archive did not include an explicit license file. See [`NOTICE`](NOTICE)
-for the data-source attribution and scope of the package license. Publication
-should retain that notice and confirm applicable NASA/JPL data policy.
+There is deliberately **no distribution-wide license expression**. The MIT
+terms in [`LICENSE`](LICENSE) apply only to Institute-authored packaging code
+and documentation. They do not apply to or relicense `bias.dat` or the
+upstream README. The JPL archive supplied no explicit license, and no
+applicable redistribution authorization is present. [`NOTICE`](NOTICE) and
+the packaged `SOURCE_MANIFEST.json` record this fail-closed status.

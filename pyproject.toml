@@ -1,5 +1,5 @@
 [build-system]
-requires = ["setuptools>=77"]
+requires = ["setuptools==84.2.1"]
 build-backend = "setuptools.build_meta"
 
 [project]
@@ -8,7 +8,6 @@ version = "2023.3.1.1"
 description = "JPL EFCC18 astrometric catalog-debias reference data"
 readme = "README.md"
 requires-python = ">=3.11"
-license = "MIT"
 license-files = ["LICENSE", "NOTICE"]
 authors = [
     { name = "B612 Asteroid Institute", email = "info@b612foundation.org" },
@@ -39,8 +38,8 @@ test = [
     "ruff>=0.8",
 ]
 build = [
-    "build>=1.2",
-    "twine>=6",
+    "build==1.6.1",
+    "twine==7.0.0",
 ]
 
 [tool.setuptools]
@@ -51,7 +50,13 @@ include-package-data = true
 where = ["src"]
 
 [tool.setuptools.package-data]
-jpl_debias_2018 = ["bias.dat", "UPSTREAM_README.txt", "SOURCE_MANIFEST.json", "py.typed"]
+jpl_debias_2018 = [
+    "bias.dat",
+    "UPSTREAM_README.txt",
+    "SOURCE_MANIFEST.json",
+    "SOURCE_INVENTORY.json",
+    "py.typed",
+]
 
 [tool.pytest.ini_options]
 addopts = "-ra --strict-config --strict-markers"

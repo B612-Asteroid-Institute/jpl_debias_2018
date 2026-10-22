@@ -1,9 +1,15 @@
+include .gitattributes
+include .gitignore
 include LICENSE
 include NOTICE
 include README.md
+include MANIFEST.in
+include pyproject.toml
+recursive-include .github *.yml
 include src/jpl_debias_2018/bias.dat
 include src/jpl_debias_2018/UPSTREAM_README.txt
 include src/jpl_debias_2018/SOURCE_MANIFEST.json
+include src/jpl_debias_2018/SOURCE_INVENTORY.json
 include src/jpl_debias_2018/py.typed
 recursive-include tests *.py
 recursive-include tools *.py
