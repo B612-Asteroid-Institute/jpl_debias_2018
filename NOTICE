@@ -1,0 +1,14 @@
+jpl-debias-2018 packages an unmodified data file obtained from the NASA/JPL
+Solar System Dynamics service:
+
+  https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz
+
+The MIT license in LICENSE applies to the packaging code and documentation
+created by B612 Asteroid Institute. It does not purport to relicense the JPL
+source data. The upstream archive contains no explicit license file. The data
+and upstream README are redistributed with source attribution and exact
+content hashes; downstream users should confirm that their use complies with
+applicable NASA/JPL data policies.
+
+The upstream README credits Eggl et al. (2020, Icarus) for details of the
+catalog-debiasing method.
