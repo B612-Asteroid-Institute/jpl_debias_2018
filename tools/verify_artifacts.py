@@ -1,22 +1,21 @@
 #!/usr/bin/env python3
-"""Verify exact source inventory, package identity, metadata, and data bytes."""
+"""Verify exact source, scientific identity, and canonical release artifacts."""
 
 from __future__ import annotations
 
 import argparse
 import base64
 import csv
+import gzip
 import hashlib
 import io
 import json
 import os
 import subprocess
 import tarfile
+import time
 import zipfile
 from collections.abc import Mapping, Sequence
-from email import policy
-from email.message import Message
-from email.parser import BytesParser
 from pathlib import Path, PurePosixPath
 from typing import Any, cast
 
@@ -25,6 +24,10 @@ PACKAGE = "jpl_debias_2018"
 VERSION = "2023.3.1.1"
 DIST_INFO = f"{PACKAGE}-{VERSION}.dist-info"
 EGG_INFO = f"src/{PACKAGE}.egg-info"
+SDIST_ROOT = f"{PACKAGE}-{VERSION}"
+WHEEL_NAME = f"{PACKAGE}-{VERSION}-py3-none-any.whl"
+SDIST_NAME = f"{PACKAGE}-{VERSION}.tar.gz"
+BUILD_EPOCH = 1_677_709_479  # Upstream archive Last-Modified.
 INVENTORY_PATH = f"src/{PACKAGE}/SOURCE_INVENTORY.json"
 DATA_MANIFEST_PATH = f"src/{PACKAGE}/SOURCE_MANIFEST.json"
 BIAS_PATH = f"src/{PACKAGE}/bias.dat"
@@ -36,6 +39,34 @@ BIAS_SIZE = 37_161_151
 README_SHA256 = "946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec"
 README_SIZE = 1_606
 TILES_SHA256 = "ccb313f0f04f49f0158b915b7ca997b91bba50192a808ba590a32e99a91eefa6"
+CATALOG_CODES = [
+    "a",
+    "b",
+    "c",
+    "d",
+    "e",
+    "g",
+    "i",
+    "j",
+    "l",
+    "m",
+    "n",
+    "o",
+    "p",
+    "q",
+    "r",
+    "t",
+    "u",
+    "v",
+    "w",
+    "L",
+    "N",
+    "Q",
+    "R",
+    "S",
+    "U",
+    "Y",
+]
 
 PACKAGE_SOURCE_TO_WHEEL = {
     f"src/{PACKAGE}/SOURCE_INVENTORY.json": f"{PACKAGE}/SOURCE_INVENTORY.json",
@@ -46,29 +77,107 @@ PACKAGE_SOURCE_TO_WHEEL = {
     f"src/{PACKAGE}/py.typed": f"{PACKAGE}/py.typed",
 }
 
-EXPECTED_CLASSIFIERS = {
-    "Development Status :: 4 - Beta",
-    "Intended Audience :: Science/Research",
-    "Programming Language :: Python :: 3",
-    "Programming Language :: Python :: 3 :: Only",
-    "Programming Language :: Python :: 3.11",
-    "Programming Language :: Python :: 3.12",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Scientific/Engineering :: Astronomy",
-    "Typing :: Typed",
+EXPECTED_DATA_MANIFEST: dict[str, Any] = {
+    "schema_version": 1,
+    "distribution": DISTRIBUTION,
+    "package_version": VERSION,
+    "source": {
+        "url": "https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
+        "archive_name": "debias_2018.tgz",
+        "archive_size_bytes": 9_852_628,
+        "archive_sha256": ARCHIVE_SHA256,
+        "http_last_modified": "2023-03-01T22:24:39Z",
+        "archive_members": {
+            "README.txt": {
+                "size_bytes": README_SIZE,
+                "sha256": README_SHA256,
+                "packaged_as": "UPSTREAM_README.txt",
+            },
+            "bias.dat": {
+                "size_bytes": BIAS_SIZE,
+                "sha256": BIAS_SHA256,
+                "packaged_as": "bias.dat",
+            },
+            "tiles.dat": {
+                "size_bytes": 1_622_072,
+                "sha256": TILES_SHA256,
+                "packaged_as": None,
+            },
+        },
+    },
+    "resources": {
+        "bias.dat": {
+            "size_bytes": BIAS_SIZE,
+            "sha256": BIAS_SHA256,
+            "line_count": 49_175,
+            "bias_version": "3.0",
+            "bias_version_date": "2018-09-21",
+            "archive_update_date": "2023-03-01",
+            "nside": 64,
+            "npix": 49_152,
+            "catalog_codes": CATALOG_CODES,
+        },
+        "UPSTREAM_README.txt": {
+            "archive_member": "README.txt",
+            "size_bytes": README_SIZE,
+            "sha256": README_SHA256,
+        },
+    },
+    "redistribution": {
+        "status": "blocked",
+        "public_redistribution_authorized": False,
+        "data_license": None,
+        "authorization_reference": None,
+        "code_and_documentation_license": "MIT (scoped by LICENSE)",
+        "reason": (
+            "The upstream archive contains no explicit license and this repository contains no "
+            "applicable JPL/Caltech authorization for public "
+            "redistribution of the exact data bytes."
+        ),
+    },
 }
-EXPECTED_PROJECT_URLS = {
-    "Homepage, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
-    "Repository, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
-    "Upstream data, https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
-}
-EXPECTED_REQUIRES_DIST = {
-    'mypy>=1.10; extra == "test"',
-    'pytest>=8; extra == "test"',
-    'ruff>=0.8; extra == "test"',
-    'build==1.6.1; extra == "build"',
-    'twine==7.0.0; extra == "build"',
-}
+
+EXPECTED_METADATA_HEADERS = (
+    "Metadata-Version: 2.4",
+    "Name: jpl-debias-2018",
+    "Version: 2023.3.1.1",
+    "Summary: JPL EFCC18 astrometric catalog-debias reference data",
+    "Author-email: B612 Asteroid Institute <info@b612foundation.org>",
+    "Project-URL: Homepage, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
+    "Project-URL: Repository, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
+    "Project-URL: Upstream data, https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
+    "Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+    "Classifier: Development Status :: 4 - Beta",
+    "Classifier: Intended Audience :: Science/Research",
+    "Classifier: Programming Language :: Python :: 3",
+    "Classifier: Programming Language :: Python :: 3 :: Only",
+    "Classifier: Programming Language :: Python :: 3.11",
+    "Classifier: Programming Language :: Python :: 3.12",
+    "Classifier: Programming Language :: Python :: 3.13",
+    "Classifier: Topic :: Scientific/Engineering :: Astronomy",
+    "Classifier: Typing :: Typed",
+    "Requires-Python: >=3.11",
+    "Description-Content-Type: text/markdown",
+    "License-File: LICENSE",
+    "License-File: NOTICE",
+    "Provides-Extra: test",
+    'Requires-Dist: mypy>=1.10; extra == "test"',
+    'Requires-Dist: pytest>=8; extra == "test"',
+    'Requires-Dist: ruff>=0.8; extra == "test"',
+    "Provides-Extra: build",
+    'Requires-Dist: build==1.6.1; extra == "build"',
+    'Requires-Dist: twine==7.0.0; extra == "build"',
+    "Dynamic: license-file",
+)
+EXPECTED_WHEEL_BYTES = (
+    b"Wheel-Version: 1.0\n"
+    b"Generator: setuptools (84.2.1)\n"
+    b"Root-Is-Purelib: true\n"
+    b"Tag: py3-none-any\n\n"
+)
+EXPECTED_REQUIRES_BYTES = (
+    b"\n[build]\nbuild==1.6.1\ntwine==7.0.0\n\n[test]\nmypy>=1.10\npytest>=8\nruff>=0.8\n"
+)
 
 
 class VerificationError(ValueError):
@@ -109,82 +218,30 @@ def _verify_identity(contents: bytes, size: int, digest: str, label: str) -> Non
         raise VerificationError(f"{label}: expected SHA-256 {digest}, got {actual_digest}")
 
 
+def _expected_manifest_bytes() -> bytes:
+    return (json.dumps(EXPECTED_DATA_MANIFEST, indent=2) + "\n").encode("utf-8")
+
+
 def _validate_data_manifest_bytes(
     manifest_bytes: bytes, bias_bytes: bytes, upstream_readme_bytes: bytes
 ) -> None:
-    manifest = _load_json(manifest_bytes, "SOURCE_MANIFEST.json")
-    if manifest.get("schema_version") != 1:
-        raise VerificationError("SOURCE_MANIFEST.json: unsupported schema_version")
-    if manifest.get("distribution") != DISTRIBUTION:
-        raise VerificationError("SOURCE_MANIFEST.json: distribution mismatch")
-    if manifest.get("package_version") != VERSION:
-        raise VerificationError("SOURCE_MANIFEST.json: package version mismatch")
-
-    source = manifest.get("source")
-    if not isinstance(source, dict):
-        raise VerificationError("SOURCE_MANIFEST.json: source must be an object")
-    expected_source_scalars = {
-        "url": "https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
-        "archive_name": "debias_2018.tgz",
-        "archive_size_bytes": 9_852_628,
-        "archive_sha256": ARCHIVE_SHA256,
-        "http_last_modified": "2023-03-01T22:24:39Z",
-    }
-    for key, expected in expected_source_scalars.items():
-        if source.get(key) != expected:
-            raise VerificationError(f"SOURCE_MANIFEST.json: source.{key} mismatch")
-    expected_archive_members = {
-        "README.txt": {
-            "size_bytes": README_SIZE,
-            "sha256": README_SHA256,
-            "packaged_as": "UPSTREAM_README.txt",
-        },
-        "bias.dat": {
-            "size_bytes": BIAS_SIZE,
-            "sha256": BIAS_SHA256,
-            "packaged_as": "bias.dat",
-        },
-        "tiles.dat": {
-            "size_bytes": 1_622_072,
-            "sha256": TILES_SHA256,
-            "packaged_as": None,
-        },
-    }
-    if source.get("archive_members") != expected_archive_members:
-        raise VerificationError("SOURCE_MANIFEST.json: archive member inventory mismatch")
-
-    resources = manifest.get("resources")
-    if not isinstance(resources, dict):
-        raise VerificationError("SOURCE_MANIFEST.json: resources must be an object")
-    bias = resources.get("bias.dat")
-    readme = resources.get("UPSTREAM_README.txt")
-    if not isinstance(bias, dict) or not isinstance(readme, dict):
-        raise VerificationError("SOURCE_MANIFEST.json: required resources missing")
-    if bias.get("size_bytes") != BIAS_SIZE or bias.get("sha256") != BIAS_SHA256:
-        raise VerificationError("SOURCE_MANIFEST.json: bias.dat identity mismatch")
-    if bias.get("bias_version") != "3.0" or bias.get("nside") != 64 or bias.get("npix") != 49_152:
-        raise VerificationError("SOURCE_MANIFEST.json: bias.dat scientific metadata mismatch")
-    if readme != {
-        "archive_member": "README.txt",
-        "size_bytes": README_SIZE,
-        "sha256": README_SHA256,
-    }:
-        raise VerificationError("SOURCE_MANIFEST.json: upstream README identity mismatch")
-
-    redistribution = manifest.get("redistribution")
-    if not isinstance(redistribution, dict):
-        raise VerificationError("SOURCE_MANIFEST.json: redistribution status missing")
-    if redistribution.get("status") != "blocked":
-        raise VerificationError("SOURCE_MANIFEST.json: public redistribution must remain blocked")
-    if redistribution.get("public_redistribution_authorized") is not False:
-        raise VerificationError("SOURCE_MANIFEST.json: authorization must fail closed")
-    if redistribution.get("data_license") is not None:
-        raise VerificationError("SOURCE_MANIFEST.json: must not invent a data license")
-    if redistribution.get("authorization_reference") is not None:
-        raise VerificationError("SOURCE_MANIFEST.json: authorization reference must be absent")
-
+    # Loading first gives explicit duplicate-key/JSON failures. Exact canonical bytes then
+    # pin every recursive key, type, value, order, and representation.
+    _load_json(manifest_bytes, "SOURCE_MANIFEST.json")
+    if manifest_bytes != _expected_manifest_bytes():
+        raise VerificationError("SOURCE_MANIFEST.json: exact schema/value mismatch")
     _verify_identity(bias_bytes, BIAS_SIZE, BIAS_SHA256, "bias.dat")
     _verify_identity(upstream_readme_bytes, README_SIZE, README_SHA256, "UPSTREAM_README.txt")
+    lines = bias_bytes.splitlines()
+    expected_header = [
+        b"! BIAS_VERSION= 3.0 (September 21, 2018)",
+        b"! NSIDE= 64 ",
+        b"! NPIX= 49152 ",
+        b"! Catalogs in this file (MPC designation):",
+        b"! " + " ".join(CATALOG_CODES).encode("ascii"),
+    ]
+    if len(lines) != 49_175 or lines[:5] != expected_header:
+        raise VerificationError("bias.dat: scientific header/line-count mismatch")
 
 
 def _git_index(root: Path) -> dict[str, str]:
@@ -211,7 +268,14 @@ def _git_index(root: Path) -> dict[str, str]:
 def _validate_inventory_object(
     inventory: dict[str, Any], root: Path, indexed: Mapping[str, str]
 ) -> dict[str, dict[str, Any]]:
-    if inventory.get("schema_version") != 1 or inventory.get("self_path") != INVENTORY_PATH:
+    if set(inventory) != {"schema_version", "self_path", "self_identity", "files"}:
+        raise VerificationError("SOURCE_INVENTORY.json: exact top-level schema mismatch")
+    if (
+        inventory.get("schema_version") != 1
+        or inventory.get("self_path") != INVENTORY_PATH
+        or inventory.get("self_identity")
+        != "excluded to avoid a recursive hash; artifact verifier compares exact bytes"
+    ):
         raise VerificationError("SOURCE_INVENTORY.json: header mismatch")
     files = inventory.get("files")
     if not isinstance(files, dict):
@@ -230,11 +294,7 @@ def _validate_inventory_object(
             raise VerificationError(f"source inventory path is not a regular file: {relative}")
         contents = path.read_bytes()
         size, digest = _identity(contents)
-        if expected != {
-            "size_bytes": size,
-            "sha256": digest,
-            "git_mode": indexed[relative],
-        }:
+        if expected != {"size_bytes": size, "sha256": digest, "git_mode": indexed[relative]}:
             raise VerificationError(f"SOURCE_INVENTORY.json: stale identity for {relative}")
     return typed_files
 
@@ -244,8 +304,7 @@ def validate_source_tree(root: Path) -> dict[str, dict[str, Any]]:
     indexed = _git_index(root)
     if INVENTORY_PATH not in indexed:
         raise VerificationError(f"source index does not contain {INVENTORY_PATH}")
-    inventory_bytes = (root / INVENTORY_PATH).read_bytes()
-    inventory = _load_json(inventory_bytes, "SOURCE_INVENTORY.json")
+    inventory = _load_json((root / INVENTORY_PATH).read_bytes(), "SOURCE_INVENTORY.json")
     files = _validate_inventory_object(inventory, root, indexed)
     _validate_data_manifest_bytes(
         (root / DATA_MANIFEST_PATH).read_bytes(),
@@ -255,57 +314,22 @@ def validate_source_tree(root: Path) -> dict[str, dict[str, Any]]:
     return files
 
 
-def _message(contents: bytes, label: str) -> Message:
-    try:
-        return BytesParser(policy=policy.default).parsebytes(contents)
-    except Exception as error:
-        raise VerificationError(f"{label}: invalid RFC 822 metadata: {error}") from error
-
-
-def _one(message: Message, name: str, expected: str, label: str) -> None:
-    values = message.get_all(name, [])
-    if values != [expected]:
-        raise VerificationError(f"{label}: {name} mismatch: {values!r}")
+def _expected_metadata_bytes(root: Path) -> bytes:
+    return ("\n".join(EXPECTED_METADATA_HEADERS) + "\n\n").encode() + (
+        root / "README.md"
+    ).read_bytes()
 
 
 def _verify_metadata(contents: bytes, root: Path, label: str) -> None:
-    message = _message(contents, label)
-    _one(message, "Metadata-Version", "2.4", label)
-    _one(message, "Name", DISTRIBUTION, label)
-    _one(message, "Version", VERSION, label)
-    _one(message, "Summary", "JPL EFCC18 astrometric catalog-debias reference data", label)
-    _one(message, "Author-email", "B612 Asteroid Institute <info@b612foundation.org>", label)
-    _one(message, "Requires-Python", ">=3.11", label)
-    _one(message, "Description-Content-Type", "text/markdown", label)
-    if message.get_all("License", []) or message.get_all("License-Expression", []):
-        raise VerificationError(f"{label}: distribution-wide license claim is forbidden")
-    if set(message.get_all("License-File", [])) != {"LICENSE", "NOTICE"}:
-        raise VerificationError(f"{label}: scoped license/notice files mismatch")
-    if set(message.get_all("Classifier", [])) != EXPECTED_CLASSIFIERS:
-        raise VerificationError(f"{label}: classifiers mismatch")
-    if set(message.get_all("Project-URL", [])) != EXPECTED_PROJECT_URLS:
-        raise VerificationError(f"{label}: project URLs mismatch")
-    if set(message.get_all("Provides-Extra", [])) != {"build", "test"}:
-        raise VerificationError(f"{label}: extras mismatch")
-    if set(message.get_all("Requires-Dist", [])) != EXPECTED_REQUIRES_DIST:
-        raise VerificationError(f"{label}: dependency metadata mismatch")
-    if set(message.get_all("Dynamic", [])) - {"license-file"}:
-        raise VerificationError(f"{label}: unexpected dynamic metadata")
-    payload = message.get_payload()
-    if not isinstance(payload, str) or payload != (root / "README.md").read_text(encoding="utf-8"):
-        raise VerificationError(f"{label}: long description differs from README.md")
+    if contents != _expected_metadata_bytes(root):
+        raise VerificationError(
+            f"{label}: exact metadata headers/order/multiplicity/description mismatch"
+        )
 
 
 def _verify_wheel_metadata(contents: bytes) -> None:
-    message = _message(contents, "WHEEL")
-    _one(message, "Wheel-Version", "1.0", "WHEEL")
-    _one(message, "Generator", "setuptools (84.2.1)", "WHEEL")
-    _one(message, "Root-Is-Purelib", "true", "WHEEL")
-    _one(message, "Tag", "py3-none-any", "WHEEL")
-    allowed = {"Wheel-Version", "Generator", "Root-Is-Purelib", "Tag"}
-    unexpected = set(message.keys()) - allowed
-    if unexpected:
-        raise VerificationError(f"WHEEL: unexpected fields: {sorted(unexpected)}")
+    if contents != EXPECTED_WHEEL_BYTES:
+        raise VerificationError("WHEEL: exact metadata mismatch")
 
 
 def _record_digest(contents: bytes) -> str:
@@ -313,24 +337,40 @@ def _record_digest(contents: bytes) -> str:
     return "sha256=" + encoded.decode("ascii")
 
 
+def _record_order(record_path: str) -> list[str]:
+    return [
+        *PACKAGE_SOURCE_TO_WHEEL.values(),
+        f"{DIST_INFO}/licenses/LICENSE",
+        f"{DIST_INFO}/licenses/NOTICE",
+        f"{DIST_INFO}/METADATA",
+        f"{DIST_INFO}/WHEEL",
+        f"{DIST_INFO}/top_level.txt",
+        record_path,
+    ]
+
+
+def _canonical_record(members: Mapping[str, bytes], record_path: str) -> bytes:
+    if set(members) != set(_record_order(record_path)):
+        raise VerificationError("RECORD: cannot construct identity for unexpected member set")
+    rows = []
+    for path in _record_order(record_path):
+        if path == record_path:
+            rows.append(f"{path},,")
+        else:
+            contents = members[path]
+            rows.append(f"{path},{_record_digest(contents)},{len(contents)}")
+    return ("\n".join(rows) + "\n").encode("utf-8")
+
+
 def _verify_record(record: bytes, members: Mapping[str, bytes], record_path: str) -> None:
-    rows = list(csv.reader(io.StringIO(record.decode("utf-8"))))
+    try:
+        rows = list(csv.reader(io.StringIO(record.decode("utf-8"))))
+    except (UnicodeDecodeError, csv.Error) as error:
+        raise VerificationError(f"RECORD: invalid CSV: {error}") from error
     if any(len(row) != 3 for row in rows):
         raise VerificationError("RECORD: every row must have three fields")
-    by_path: dict[str, tuple[str, str]] = {}
-    for path, digest, size in rows:
-        if path in by_path:
-            raise VerificationError(f"RECORD: duplicate path {path}")
-        by_path[path] = (digest, size)
-    if set(by_path) != set(members):
-        raise VerificationError("RECORD: path set differs from wheel members")
-    for path, contents in members.items():
-        digest, size = by_path[path]
-        if path == record_path:
-            if digest or size:
-                raise VerificationError("RECORD: self row must have empty hash and size")
-        elif digest != _record_digest(contents) or size != str(len(contents)):
-            raise VerificationError(f"RECORD: stale identity for {path}")
+    if record != _canonical_record(members, record_path):
+        raise VerificationError("RECORD: exact ordered path/hash/size identity mismatch")
 
 
 def _safe_archive_name(name: str) -> bool:
@@ -352,14 +392,7 @@ def _validate_wheel_members(members: Mapping[str, bytes], root: Path) -> None:
     record_path = f"{DIST_INFO}/RECORD"
     license_path = f"{DIST_INFO}/licenses/LICENSE"
     notice_path = f"{DIST_INFO}/licenses/NOTICE"
-    expected = set(PACKAGE_SOURCE_TO_WHEEL.values()) | {
-        metadata_path,
-        wheel_path,
-        top_level_path,
-        record_path,
-        license_path,
-        notice_path,
-    }
+    expected = set(_record_order(record_path))
     if set(members) != expected:
         raise VerificationError(
             f"wheel member set mismatch: missing={sorted(expected - set(members))}, "
@@ -384,6 +417,26 @@ def _validate_wheel_members(members: Mapping[str, bytes], root: Path) -> None:
     _verify_record(members[record_path], members, record_path)
 
 
+def _canonical_wheel_bytes(members: Mapping[str, bytes]) -> bytes:
+    destination = io.BytesIO()
+    timestamp = time.gmtime(BUILD_EPOCH)[:6]
+    with zipfile.ZipFile(
+        destination,
+        mode="w",
+        compression=zipfile.ZIP_DEFLATED,
+        compresslevel=9,
+        strict_timestamps=True,
+    ) as archive:
+        for name in sorted(members):
+            info = zipfile.ZipInfo(name, date_time=timestamp)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.create_system = 3
+            info.external_attr = 0o100644 << 16
+            info.flag_bits = 0x800
+            archive.writestr(info, members[name])
+    return destination.getvalue()
+
+
 def _read_wheel(path: Path) -> dict[str, bytes]:
     try:
         with zipfile.ZipFile(path) as archive:
@@ -400,7 +453,12 @@ def _read_wheel(path: Path) -> dict[str, bytes]:
 
 
 def verify_wheel(path: Path, root: Path) -> None:
-    _validate_wheel_members(_read_wheel(path), root)
+    if path.name != WHEEL_NAME:
+        raise VerificationError(f"wheel filename mismatch: expected {WHEEL_NAME}, got {path.name}")
+    members = _read_wheel(path)
+    _validate_wheel_members(members, root)
+    if path.read_bytes() != _canonical_wheel_bytes(members):
+        raise VerificationError("wheel container is not the exact canonical ZIP")
 
 
 def _generated_sdist_paths() -> set[str]:
@@ -415,40 +473,134 @@ def _generated_sdist_paths() -> set[str]:
     }
 
 
-def _validate_sdist_members(members: Mapping[str, bytes], root: Path) -> None:
+def _expected_sources_entries(source_paths: set[str]) -> list[str]:
+    root_order = [
+        ".gitattributes",
+        ".gitignore",
+        "LICENSE",
+        "MANIFEST.in",
+        "NOTICE",
+        "README.md",
+        "pyproject.toml",
+    ]
+    entries = [path for path in root_order if path in source_paths]
+    entries.extend(sorted(path for path in source_paths if path.startswith(".github/")))
+    entries.extend(sorted(path for path in source_paths if path.startswith(f"src/{PACKAGE}/")))
+    entries.extend(
+        [
+            f"{EGG_INFO}/PKG-INFO",
+            f"{EGG_INFO}/SOURCES.txt",
+            f"{EGG_INFO}/dependency_links.txt",
+            f"{EGG_INFO}/requires.txt",
+            f"{EGG_INFO}/top_level.txt",
+        ]
+    )
+    entries.extend(sorted(path for path in source_paths if path.startswith("tests/")))
+    entries.extend(sorted(path for path in source_paths if path.startswith("tools/")))
+    consumed = set(entries) - {
+        f"{EGG_INFO}/PKG-INFO",
+        f"{EGG_INFO}/SOURCES.txt",
+        f"{EGG_INFO}/dependency_links.txt",
+        f"{EGG_INFO}/requires.txt",
+        f"{EGG_INFO}/top_level.txt",
+    }
+    if consumed != source_paths:
+        raise VerificationError(
+            "sdist SOURCES.txt policy does not classify exact source paths: "
+            f"missing={sorted(source_paths - consumed)}, "
+            f"unexpected={sorted(consumed - source_paths)}"
+        )
+    return entries
+
+
+def _expected_sdist_members(root: Path) -> dict[str, bytes]:
     inventory = validate_source_tree(root)
     source_paths = set(inventory) | {INVENTORY_PATH}
-    expected = source_paths | _generated_sdist_paths()
-    if set(members) != expected:
+    members = {relative: (root / relative).read_bytes() for relative in source_paths}
+    metadata = _expected_metadata_bytes(root)
+    members["PKG-INFO"] = metadata
+    members[f"{EGG_INFO}/PKG-INFO"] = metadata
+    members["setup.cfg"] = b"[egg_info]\ntag_build = \ntag_date = 0\n\n"
+    members[f"{EGG_INFO}/dependency_links.txt"] = b"\n"
+    members[f"{EGG_INFO}/requires.txt"] = EXPECTED_REQUIRES_BYTES
+    members[f"{EGG_INFO}/top_level.txt"] = b"jpl_debias_2018\n"
+    members[f"{EGG_INFO}/SOURCES.txt"] = "\n".join(_expected_sources_entries(source_paths)).encode(
+        "utf-8"
+    )
+    return members
+
+
+def _validate_sdist_members(members: Mapping[str, bytes], root: Path) -> None:
+    expected = _expected_sdist_members(root)
+    if set(members) != set(expected):
         raise VerificationError(
-            f"sdist member set mismatch: missing={sorted(expected - set(members))}, "
-            f"unexpected={sorted(set(members) - expected)}"
+            f"sdist member set mismatch: missing={sorted(set(expected) - set(members))}, "
+            f"unexpected={sorted(set(members) - set(expected))}"
         )
-    for relative in source_paths:
-        if members[relative] != (root / relative).read_bytes():
-            raise VerificationError(f"sdist member differs from source: {relative}")
+    for relative, expected_bytes in expected.items():
+        if members[relative] != expected_bytes:
+            raise VerificationError(f"sdist member differs from exact contract: {relative}")
     _validate_data_manifest_bytes(
         members[DATA_MANIFEST_PATH], members[BIAS_PATH], members[UPSTREAM_README_PATH]
     )
     _verify_metadata(members["PKG-INFO"], root, "sdist PKG-INFO")
-    if members[f"{EGG_INFO}/PKG-INFO"] != members["PKG-INFO"]:
-        raise VerificationError("sdist PKG-INFO copies differ")
-    if members["setup.cfg"] != b"[egg_info]\ntag_build = \ntag_date = 0\n\n":
-        raise VerificationError("sdist setup.cfg mismatch")
-    if members[f"{EGG_INFO}/dependency_links.txt"] != b"\n":
-        raise VerificationError("sdist dependency_links.txt mismatch")
-    if members[f"{EGG_INFO}/top_level.txt"] != b"jpl_debias_2018\n":
-        raise VerificationError("sdist top_level.txt mismatch")
-    source_lines = set(members[f"{EGG_INFO}/SOURCES.txt"].decode("utf-8").splitlines())
-    if source_lines != expected - {"PKG-INFO", "setup.cfg"}:
-        raise VerificationError("sdist SOURCES.txt does not attest the exact file set")
-    requires = members[f"{EGG_INFO}/requires.txt"].decode("utf-8")
-    for requirement in ("build==1.6.1", "twine==7.0.0", "mypy>=1.10", "pytest>=8", "ruff>=0.8"):
-        if requires.count(requirement) != 1:
-            raise VerificationError(f"sdist requires.txt mismatch for {requirement}")
+    _verify_metadata(members[f"{EGG_INFO}/PKG-INFO"], root, "sdist egg-info PKG-INFO")
 
 
-def _read_sdist(path: Path) -> dict[str, bytes]:
+def _directory_names(file_names: Sequence[str]) -> set[str]:
+    directories: set[str] = set()
+    for name in file_names:
+        path = PurePosixPath(name)
+        for parent in path.parents:
+            if parent.as_posix() != ".":
+                directories.add(parent.as_posix())
+    return directories
+
+
+def _canonical_sdist_bytes(
+    full_members: Mapping[str, bytes], file_modes: Mapping[str, int]
+) -> bytes:
+    if set(full_members) != set(file_modes):
+        raise VerificationError("canonical sdist mode/member sets differ")
+    directories = _directory_names(list(full_members))
+    raw = io.BytesIO()
+    with (
+        gzip.GzipFile(
+            filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=BUILD_EPOCH
+        ) as gz,
+        tarfile.open(fileobj=gz, mode="w", format=tarfile.GNU_FORMAT) as archive,
+    ):
+        for name in sorted(directories | set(full_members)):
+            info = tarfile.TarInfo(name)
+            info.uid = 0
+            info.gid = 0
+            info.uname = ""
+            info.gname = ""
+            info.mtime = BUILD_EPOCH
+            if name in directories:
+                info.type = tarfile.DIRTYPE
+                info.mode = 0o755
+                info.size = 0
+                archive.addfile(info)
+            else:
+                contents = full_members[name]
+                info.type = tarfile.REGTYPE
+                info.mode = file_modes[name]
+                info.size = len(contents)
+                archive.addfile(info, fileobj=io.BytesIO(contents))
+    return raw.getvalue()
+
+
+def _expected_sdist_file_modes(root: Path, relative_names: set[str]) -> dict[str, int]:
+    indexed = _git_index(root)
+    result: dict[str, int] = {}
+    for relative in relative_names:
+        mode = 0o755 if indexed.get(relative) == "100755" else 0o644
+        result[f"{SDIST_ROOT}/{relative}"] = mode
+    return result
+
+
+def _read_sdist(path: Path) -> tuple[dict[str, bytes], set[str]]:
     try:
         with tarfile.open(path, mode="r:gz") as archive:
             tar_members = archive.getmembers()
@@ -459,40 +611,63 @@ def _read_sdist(path: Path) -> dict[str, bytes]:
             if unsafe:
                 raise VerificationError(f"{path}: unsafe tar members: {unsafe}")
             roots = {PurePosixPath(name).parts[0] for name in names}
-            expected_root = f"{PACKAGE}-{VERSION}"
-            if roots != {expected_root}:
+            if roots != {SDIST_ROOT}:
                 raise VerificationError(f"{path}: unexpected sdist root: {roots}")
             result: dict[str, bytes] = {}
+            directories: set[str] = set()
             for member in tar_members:
+                relative = PurePosixPath(member.name).relative_to(SDIST_ROOT).as_posix()
+                if relative == ".":
+                    relative = ""
                 if member.isdir():
+                    directories.add(relative)
                     continue
                 if not member.isfile():
                     raise VerificationError(f"{path}: non-regular tar member: {member.name}")
                 extracted = archive.extractfile(member)
                 if extracted is None:
                     raise VerificationError(f"{path}: unreadable tar member: {member.name}")
-                relative = PurePosixPath(member.name).relative_to(expected_root).as_posix()
                 result[relative] = extracted.read()
-            return result
-    except tarfile.TarError as error:
-        raise VerificationError(f"{path}: invalid sdist tar: {error}") from error
+            return result, directories
+    except (tarfile.TarError, OSError) as error:
+        raise VerificationError(f"{path}: invalid sdist tar/gzip: {error}") from error
 
 
 def verify_sdist(path: Path, root: Path) -> None:
-    _validate_sdist_members(_read_sdist(path), root)
+    if path.name != SDIST_NAME:
+        raise VerificationError(f"sdist filename mismatch: expected {SDIST_NAME}, got {path.name}")
+    members, directories = _read_sdist(path)
+    _validate_sdist_members(members, root)
+    full_members = {f"{SDIST_ROOT}/{name}": contents for name, contents in members.items()}
+    expected_directories = {
+        "" if name == SDIST_ROOT else PurePosixPath(name).relative_to(SDIST_ROOT).as_posix()
+        for name in _directory_names(list(full_members))
+    }
+    if directories != expected_directories:
+        raise VerificationError(
+            "sdist directory set mismatch: "
+            f"missing={sorted(expected_directories - directories)}, "
+            f"unexpected={sorted(directories - expected_directories)}"
+        )
+    modes = _expected_sdist_file_modes(root, set(members))
+    if path.read_bytes() != _canonical_sdist_bytes(full_members, modes):
+        raise VerificationError("sdist container is not the exact canonical tar/gzip")
 
 
 def verify_artifacts(artifacts: Sequence[Path], source_root: Path) -> None:
     source_root = source_root.resolve()
     validate_source_tree(source_root)
-    for artifact in artifacts:
-        if artifact.suffix == ".whl":
-            verify_wheel(artifact, source_root)
-        elif artifact.name.endswith(".tar.gz"):
-            verify_sdist(artifact, source_root)
-        else:
-            raise VerificationError(f"unsupported artifact: {artifact}")
-        print(f"verified {artifact}")
+    by_name = {artifact.name: artifact for artifact in artifacts}
+    expected_names = {WHEEL_NAME, SDIST_NAME}
+    if len(artifacts) != 2 or set(by_name) != expected_names:
+        raise VerificationError(
+            f"release artifact set mismatch: expected={sorted(expected_names)}, "
+            f"got={sorted(artifact.name for artifact in artifacts)}"
+        )
+    verify_wheel(by_name[WHEEL_NAME], source_root)
+    print(f"verified {by_name[WHEEL_NAME]}")
+    verify_sdist(by_name[SDIST_NAME], source_root)
+    print(f"verified {by_name[SDIST_NAME]}")
 
 
 def main() -> int:

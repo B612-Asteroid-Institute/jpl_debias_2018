@@ -4,15 +4,12 @@
 from __future__ import annotations
 
 import argparse
-import gzip
-import io
 import os
 import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
-import time
 import zipfile
 from pathlib import Path
 
@@ -20,9 +17,15 @@ ROOT = Path(__file__).resolve().parents[1]
 if str(ROOT) not in sys.path:
     sys.path.insert(0, str(ROOT))
 
-from tools.verify_artifacts import VERSION, validate_source_tree, verify_artifacts  # noqa: E402
-
-BUILD_EPOCH = 1_677_709_479  # Upstream archive Last-Modified: 2023-03-01T22:24:39Z.
+from tools.verify_artifacts import (  # noqa: E402
+    BUILD_EPOCH,
+    SDIST_NAME,
+    WHEEL_NAME,
+    _canonical_sdist_bytes,
+    _canonical_wheel_bytes,
+    validate_source_tree,
+    verify_artifacts,
+)
 
 
 def _require_clean(root: Path) -> None:
@@ -43,28 +46,14 @@ def _canonicalize_wheel(source: Path, destination: Path) -> None:
         if len(names) != len(set(names)):
             raise RuntimeError("raw wheel contains duplicate members")
         contents = {info.filename: archive.read(info) for info in infos}
-
-    timestamp = time.gmtime(BUILD_EPOCH)[:6]
     temporary = destination.with_suffix(destination.suffix + ".tmp")
-    with zipfile.ZipFile(
-        temporary,
-        mode="w",
-        compression=zipfile.ZIP_DEFLATED,
-        compresslevel=9,
-        strict_timestamps=True,
-    ) as archive:
-        for name in sorted(contents):
-            info = zipfile.ZipInfo(name, date_time=timestamp)
-            info.compress_type = zipfile.ZIP_DEFLATED
-            info.create_system = 3
-            info.external_attr = 0o100644 << 16
-            info.flag_bits = 0x800
-            archive.writestr(info, contents[name])
+    temporary.write_bytes(_canonical_wheel_bytes(contents))
     temporary.replace(destination)
 
 
 def _canonicalize_sdist(source: Path, destination: Path) -> None:
-    entries: list[tuple[str, bool, int, bytes]] = []
+    contents: dict[str, bytes] = {}
+    modes: dict[str, int] = {}
     with tarfile.open(source, mode="r:gz") as archive:
         members = archive.getmembers()
         names = [member.name for member in members]
@@ -72,40 +61,16 @@ def _canonicalize_sdist(source: Path, destination: Path) -> None:
             raise RuntimeError("raw sdist contains duplicate members")
         for member in members:
             if member.isdir():
-                entries.append((member.name, True, 0o755, b""))
-            elif member.isfile():
-                extracted = archive.extractfile(member)
-                if extracted is None:
-                    raise RuntimeError(f"could not read raw sdist member {member.name}")
-                mode = 0o755 if member.mode & 0o111 else 0o644
-                entries.append((member.name, False, mode, extracted.read()))
-            else:
+                continue
+            if not member.isfile():
                 raise RuntimeError(f"raw sdist contains special member {member.name}")
-
+            extracted = archive.extractfile(member)
+            if extracted is None:
+                raise RuntimeError(f"could not read raw sdist member {member.name}")
+            contents[member.name] = extracted.read()
+            modes[member.name] = 0o755 if member.mode & 0o111 else 0o644
     temporary = destination.with_suffix(destination.suffix + ".tmp")
-    with (
-        temporary.open("wb") as raw,
-        gzip.GzipFile(
-            filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=BUILD_EPOCH
-        ) as gz,
-        tarfile.open(fileobj=gz, mode="w", format=tarfile.GNU_FORMAT) as archive,
-    ):
-        for name, is_directory, mode, contents in sorted(entries):
-            info = tarfile.TarInfo(name)
-            info.uid = 0
-            info.gid = 0
-            info.uname = ""
-            info.gname = ""
-            info.mode = mode
-            info.mtime = BUILD_EPOCH
-            if is_directory:
-                info.type = tarfile.DIRTYPE
-                info.size = 0
-                archive.addfile(info)
-            else:
-                info.type = tarfile.REGTYPE
-                info.size = len(contents)
-                archive.addfile(info, fileobj=io.BytesIO(contents))
+    temporary.write_bytes(_canonical_sdist_bytes(contents, modes))
     temporary.replace(destination)
 
 
@@ -140,10 +105,7 @@ def build(root: Path, output_dir: Path, *, allow_dirty: bool = False) -> list[Pa
         _canonicalize_wheel(raw_wheels[0], wheel)
         _canonicalize_sdist(raw_sdists[0], sdist)
 
-    expected_names = {
-        f"jpl_debias_2018-{VERSION}-py3-none-any.whl",
-        f"jpl_debias_2018-{VERSION}.tar.gz",
-    }
+    expected_names = {WHEEL_NAME, SDIST_NAME}
     artifacts = sorted(output_dir.iterdir())
     if {artifact.name for artifact in artifacts} != expected_names:
         raise RuntimeError("canonical artifact names do not match the release contract")

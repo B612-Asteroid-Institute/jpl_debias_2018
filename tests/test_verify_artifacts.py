@@ -1,5 +1,12 @@
 from __future__ import annotations
 
+import copy
+import gzip
+import io
+import json
+import tarfile
+import zipfile
+from collections.abc import Callable
 from pathlib import Path
 
 import pytest
@@ -7,34 +14,6 @@ import pytest
 from tools import verify_artifacts as verifier
 
 ROOT = Path(__file__).parents[1]
-
-
-def _metadata() -> bytes:
-    headers = [
-        "Metadata-Version: 2.4",
-        "Name: jpl-debias-2018",
-        "Version: 2023.3.1.1",
-        "Summary: JPL EFCC18 astrometric catalog-debias reference data",
-        "Author-email: B612 Asteroid Institute <info@b612foundation.org>",
-        "Project-URL: Homepage, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
-        "Project-URL: Repository, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
-        "Project-URL: Upstream data, https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
-        "Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
-        *(f"Classifier: {value}" for value in sorted(verifier.EXPECTED_CLASSIFIERS)),
-        "Requires-Python: >=3.11",
-        "Description-Content-Type: text/markdown",
-        "License-File: LICENSE",
-        "License-File: NOTICE",
-        "Provides-Extra: test",
-        'Requires-Dist: mypy>=1.10; extra == "test"',
-        'Requires-Dist: pytest>=8; extra == "test"',
-        'Requires-Dist: ruff>=0.8; extra == "test"',
-        "Provides-Extra: build",
-        'Requires-Dist: build==1.6.1; extra == "build"',
-        'Requires-Dist: twine==7.0.0; extra == "build"',
-        "Dynamic: license-file",
-    ]
-    return ("\n".join(headers) + "\n\n" + (ROOT / "README.md").read_text()).encode()
 
 
 def _wheel_members() -> dict[str, bytes]:
@@ -45,51 +24,70 @@ def _wheel_members() -> dict[str, bytes]:
     prefix = verifier.DIST_INFO
     members[f"{prefix}/licenses/LICENSE"] = (ROOT / "LICENSE").read_bytes()
     members[f"{prefix}/licenses/NOTICE"] = (ROOT / "NOTICE").read_bytes()
-    members[f"{prefix}/METADATA"] = _metadata()
-    members[f"{prefix}/WHEEL"] = (
-        b"Wheel-Version: 1.0\n"
-        b"Generator: setuptools (84.2.1)\n"
-        b"Root-Is-Purelib: true\n"
-        b"Tag: py3-none-any\n\n"
-    )
+    members[f"{prefix}/METADATA"] = verifier._expected_metadata_bytes(ROOT)
+    members[f"{prefix}/WHEEL"] = verifier.EXPECTED_WHEEL_BYTES
     members[f"{prefix}/top_level.txt"] = b"jpl_debias_2018\n"
     record_path = f"{prefix}/RECORD"
     members[record_path] = b""
-    rows = []
-    for path, contents in sorted(members.items()):
-        if path == record_path:
-            rows.append(f"{path},,")
-        else:
-            rows.append(f"{path},{verifier._record_digest(contents)},{len(contents)}")
-    members[record_path] = ("\n".join(rows) + "\n").encode()
+    members[record_path] = verifier._canonical_record(members, record_path)
     return members
+
+
+def _rehash_record(members: dict[str, bytes]) -> None:
+    record_path = f"{verifier.DIST_INFO}/RECORD"
+    members[record_path] = b""
+    members[record_path] = verifier._canonical_record(members, record_path)
 
 
 def _sdist_members() -> dict[str, bytes]:
-    inventory = verifier.validate_source_tree(ROOT)
-    source_paths = set(inventory) | {verifier.INVENTORY_PATH}
-    members = {path: (ROOT / path).read_bytes() for path in source_paths}
-    members["PKG-INFO"] = _metadata()
-    members[f"{verifier.EGG_INFO}/PKG-INFO"] = members["PKG-INFO"]
-    members["setup.cfg"] = b"[egg_info]\ntag_build = \ntag_date = 0\n\n"
-    members[f"{verifier.EGG_INFO}/dependency_links.txt"] = b"\n"
-    members[f"{verifier.EGG_INFO}/requires.txt"] = (
-        b"[test]\nmypy>=1.10\npytest>=8\nruff>=0.8\n\n[build]\nbuild==1.6.1\ntwine==7.0.0\n"
-    )
-    members[f"{verifier.EGG_INFO}/top_level.txt"] = b"jpl_debias_2018\n"
-    sources_path = f"{verifier.EGG_INFO}/SOURCES.txt"
-    members[sources_path] = b""
-    expected = set(members)
-    members[sources_path] = (
-        "\n".join(sorted(expected - {"PKG-INFO", "setup.cfg"})) + "\n"
-    ).encode()
-    return members
+    return verifier._expected_sdist_members(ROOT)
 
 
 def _mutate(members: dict[str, bytes], path: str, replacement: bytes) -> dict[str, bytes]:
     mutated = members.copy()
     mutated[path] = replacement
     return mutated
+
+
+def _write_canonical_wheel(directory: Path, members: dict[str, bytes]) -> Path:
+    path = directory / verifier.WHEEL_NAME
+    path.write_bytes(verifier._canonical_wheel_bytes(members))
+    return path
+
+
+def _write_sdist_with_extra_directory(directory: Path) -> Path:
+    relative = _sdist_members()
+    full = {f"{verifier.SDIST_ROOT}/{name}": contents for name, contents in relative.items()}
+    modes = verifier._expected_sdist_file_modes(ROOT, set(relative))
+    path = directory / verifier.SDIST_NAME
+    with (
+        path.open("wb") as raw,
+        gzip.GzipFile(
+            filename="", mode="wb", fileobj=raw, compresslevel=9, mtime=verifier.BUILD_EPOCH
+        ) as gz,
+        tarfile.open(fileobj=gz, mode="w", format=tarfile.GNU_FORMAT) as archive,
+    ):
+        names = (
+            verifier._directory_names(list(full))
+            | set(full)
+            | {f"{verifier.SDIST_ROOT}/unapproved-empty"}
+        )
+        for name in sorted(names):
+            info = tarfile.TarInfo(name)
+            info.uid = info.gid = 0
+            info.uname = info.gname = ""
+            info.mtime = verifier.BUILD_EPOCH
+            if name not in full:
+                info.type = tarfile.DIRTYPE
+                info.mode = 0o755
+                archive.addfile(info)
+            else:
+                contents = full[name]
+                info.type = tarfile.REGTYPE
+                info.mode = modes[name]
+                info.size = len(contents)
+                archive.addfile(info, io.BytesIO(contents))
+    return path
 
 
 def test_valid_wheel_contract() -> None:
@@ -113,73 +111,149 @@ def test_wheel_rejects_identity_file_mutations(path: str, replacement: bytes) ->
 
 
 @pytest.mark.parametrize(
-    "metadata_mutation",
+    "mutation",
     [
         lambda value: value.replace(b"Name: jpl-debias-2018", b"Name: forged"),
-        lambda value: value.replace(b"Version: 2023.3.1.1", b"Version: 9.9.9"),
         lambda value: value.replace(
-            b"Requires-Python: >=3.11",
-            b"Requires-Python: >=3.11\nRequires-Dist: requests",
+            b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+            b"Keywords: FORGED-UNATTESTED",
         ),
         lambda value: value.replace(
-            b"Description-Content-Type: text/markdown",
-            b"Description-Content-Type: text/markdown\nLicense-Expression: MIT",
+            b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+            b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL\nX-Forged: yes",
         ),
+        lambda value: value.replace(
+            b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+            b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL\nKeywords: duplicate",
+        ),
+        lambda value: value.replace(b"Dynamic: license-file", b"Dynamic: other"),
         lambda value: value + b"forged description",
     ],
 )
-def test_wheel_rejects_metadata_mutations(metadata_mutation: object) -> None:
+def test_wheel_rejects_complete_metadata_mutations(mutation: Callable[[bytes], bytes]) -> None:
     members = _wheel_members()
     path = f"{verifier.DIST_INFO}/METADATA"
-    mutate = metadata_mutation
-    assert callable(mutate)
-    members[path] = mutate(members[path])
-    with pytest.raises(verifier.VerificationError):
+    members[path] = mutation(members[path])
+    _rehash_record(members)
+    with pytest.raises(verifier.VerificationError, match="metadata"):
         verifier._validate_wheel_members(members, ROOT)
 
 
-def test_wheel_rejects_stale_record() -> None:
+def test_record_rehashed_keywords_wheel_is_rejected(tmp_path: Path) -> None:
     members = _wheel_members()
-    members[f"{verifier.DIST_INFO}/RECORD"] += b"forged,,\n"
-    with pytest.raises(verifier.VerificationError, match="RECORD"):
-        verifier._validate_wheel_members(members, ROOT)
-
-
-def test_wheel_rejects_unexpected_member() -> None:
-    members = _wheel_members()
-    members["unexpected"] = b"x"
-    with pytest.raises(verifier.VerificationError, match="member set"):
-        verifier._validate_wheel_members(members, ROOT)
-
-
-def test_semantic_manifest_validation_rejects_stale_data_identity() -> None:
-    manifest = (
-        (ROOT / verifier.DATA_MANIFEST_PATH)
-        .read_bytes()
-        .replace(verifier.BIAS_SHA256.encode(), b"0" * 64, 1)
+    metadata_path = f"{verifier.DIST_INFO}/METADATA"
+    members[metadata_path] = members[metadata_path].replace(
+        b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+        b"Keywords: FORGED-UNATTESTED",
     )
-    with pytest.raises(verifier.VerificationError, match="archive member inventory"):
-        verifier._validate_data_manifest_bytes(
-            manifest,
-            (ROOT / verifier.BIAS_PATH).read_bytes(),
-            (ROOT / verifier.UPSTREAM_README_PATH).read_bytes(),
-        )
+    _rehash_record(members)
+    wheel = _write_canonical_wheel(tmp_path, members)
+    with pytest.raises(verifier.VerificationError, match="metadata"):
+        verifier.verify_wheel(wheel, ROOT)
+
+
+def test_wheel_rejects_noncanonical_container_and_filename(tmp_path: Path) -> None:
+    members = _wheel_members()
+    noncanonical = tmp_path / verifier.WHEEL_NAME
+    with zipfile.ZipFile(noncanonical, "w", compression=zipfile.ZIP_STORED) as archive:
+        for name in reversed(list(members)):
+            archive.writestr(name, members[name])
+    with pytest.raises(verifier.VerificationError, match="canonical ZIP"):
+        verifier.verify_wheel(noncanonical, ROOT)
+
+    renamed = tmp_path / "renamed.whl"
+    renamed.write_bytes(verifier._canonical_wheel_bytes(members))
+    with pytest.raises(verifier.VerificationError, match="filename"):
+        verifier.verify_wheel(renamed, ROOT)
 
 
 def test_valid_sdist_contract() -> None:
     verifier._validate_sdist_members(_sdist_members(), ROOT)
 
 
-def test_sdist_rejects_manifest_and_inventory_mutations() -> None:
-    for path in (verifier.DATA_MANIFEST_PATH, verifier.INVENTORY_PATH):
-        members = _sdist_members()
-        members[path] = b"{}\n"
-        with pytest.raises(verifier.VerificationError):
-            verifier._validate_sdist_members(members, ROOT)
-
-
-def test_sdist_rejects_uninventoried_member() -> None:
+@pytest.mark.parametrize(
+    ("path", "mutation"),
+    [
+        (f"{verifier.EGG_INFO}/requires.txt", lambda value: value + b"requests\n"),
+        (
+            f"{verifier.EGG_INFO}/SOURCES.txt",
+            lambda value: value + b"\ntools/verify_artifacts.py",
+        ),
+        (
+            "PKG-INFO",
+            lambda value: value.replace(
+                b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
+                b"Keywords: FORGED-UNATTESTED",
+            ),
+        ),
+        (
+            f"{verifier.EGG_INFO}/PKG-INFO",
+            lambda value: value.replace(
+                b"Dynamic: license-file", b"Dynamic: license-file\nX-Forged: yes"
+            ),
+        ),
+    ],
+)
+def test_sdist_rejects_exact_generated_file_mutations(
+    path: str, mutation: Callable[[bytes], bytes]
+) -> None:
     members = _sdist_members()
-    members["hidden-payload"] = b"x"
-    with pytest.raises(verifier.VerificationError, match="member set"):
+    members[path] = mutation(members[path])
+    with pytest.raises(verifier.VerificationError, match="exact contract"):
         verifier._validate_sdist_members(members, ROOT)
+
+
+def test_sdist_rejects_extra_directory(tmp_path: Path) -> None:
+    path = _write_sdist_with_extra_directory(tmp_path)
+    with pytest.raises(verifier.VerificationError, match="directory set"):
+        verifier.verify_sdist(path, ROOT)
+
+
+def test_sdist_rejects_noncanonical_metadata(tmp_path: Path) -> None:
+    relative = _sdist_members()
+    full = {f"{verifier.SDIST_ROOT}/{name}": contents for name, contents in relative.items()}
+    modes = verifier._expected_sdist_file_modes(ROOT, set(relative))
+    first = next(name for name in sorted(full) if name.endswith(".py"))
+    modes[first] = 0o777
+    path = tmp_path / verifier.SDIST_NAME
+    path.write_bytes(verifier._canonical_sdist_bytes(full, modes))
+    with pytest.raises(verifier.VerificationError, match="canonical tar/gzip"):
+        verifier.verify_sdist(path, ROOT)
+
+
+@pytest.mark.parametrize(
+    "mutation",
+    [
+        lambda value: value["resources"]["bias.dat"].update(line_count=1),
+        lambda value: value["resources"]["bias.dat"].update(bias_version_date="1900-01-01"),
+        lambda value: value["resources"]["bias.dat"].update(catalog_codes=["x"]),
+        lambda value: value["redistribution"].update(reason="forged"),
+        lambda value: value["redistribution"].update(code_and_documentation_license="forged"),
+        lambda value: value.update(unexpected=True),
+    ],
+)
+def test_manifest_rejects_every_reported_semantic_survivor(
+    mutation: Callable[[dict[str, object]], None],
+) -> None:
+    manifest = copy.deepcopy(verifier.EXPECTED_DATA_MANIFEST)
+    mutation(manifest)
+    contents = (json.dumps(manifest, indent=2) + "\n").encode()
+    with pytest.raises(verifier.VerificationError, match="schema/value"):
+        verifier._validate_data_manifest_bytes(
+            contents,
+            (ROOT / verifier.BIAS_PATH).read_bytes(),
+            (ROOT / verifier.UPSTREAM_README_PATH).read_bytes(),
+        )
+
+
+def test_release_artifact_set_is_exact(tmp_path: Path) -> None:
+    wheel = _write_canonical_wheel(tmp_path, _wheel_members())
+    with pytest.raises(verifier.VerificationError, match="artifact set"):
+        verifier.verify_artifacts([wheel], ROOT)
+
+
+def test_sdist_rejects_renamed_artifact_before_parsing(tmp_path: Path) -> None:
+    renamed = tmp_path / "renamed.tar.gz"
+    renamed.write_bytes(b"not-an-archive")
+    with pytest.raises(verifier.VerificationError, match="filename"):
+        verifier.verify_sdist(renamed, ROOT)

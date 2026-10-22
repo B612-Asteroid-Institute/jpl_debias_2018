@@ -156,7 +156,10 @@ The final command clones the clean commit twice, builds independently, and
 requires byte-identical wheel and sdist SHA-256 values. The builder pins the
 backend, fixes `SOURCE_DATE_EPOCH`, canonicalizes ZIP and tar/gzip metadata,
 validates every inventoried source and packaged identity file, and rejects
-dirty source by default.
+dirty source by default. The artifact verifier enforces the exact artifact
+filenames, complete ordered metadata headers and values, generated egg-info
+bytes, archive member and directory sets, and canonical container bytes. It
+does not provide a weaker payload-only verification mode.
 
 CI is pinned, read-only, artifact-only, and has no PyPI publisher credentials
 or publication job. Because its artifacts contain the blocked data bytes, the

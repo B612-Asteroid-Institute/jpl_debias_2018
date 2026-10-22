@@ -34,8 +34,8 @@
       "git_mode": "100644"
     },
     "README.md": {
-      "size_bytes": 6745,
-      "sha256": "140985983c5de8977ee71f173669566b60cbb07952406218404cf5212d14ac6e",
+      "size_bytes": 7005,
+      "sha256": "da17c4cbbc3e5d18512cf9aca86955b3473d939143bf240e14759910e2233d22",
       "git_mode": "100644"
     },
     "pyproject.toml": {
@@ -84,8 +84,8 @@
       "git_mode": "100644"
     },
     "tests/test_verify_artifacts.py": {
-      "size_bytes": 7139,
-      "sha256": "00ca803f2e403ce0d0230f769f35f2723badda9d3982f6edeb9440a2505fecbf",
+      "size_bytes": 9888,
+      "sha256": "60e3fa697e5aa5f86fdf0512d198a50f43406e76e69e3c242f90430b3010cd89",
       "git_mode": "100644"
     },
     "tools/__init__.py": {
@@ -94,8 +94,8 @@
       "git_mode": "100644"
     },
     "tools/build_release.py": {
-      "size_bytes": 6162,
-      "sha256": "78f4fc03cbb394aa2f53498aba52e5366271ade2bd39ad106b177366cf1a1a8b",
+      "size_bytes": 4724,
+      "sha256": "0ef1bbbfc76326c770d52a287ab4b13e6aad6133df7287afc6e441babdf77d2e",
       "git_mode": "100755"
     },
     "tools/check_reproducible_builds.py": {
@@ -114,8 +114,8 @@
       "git_mode": "100755"
     },
     "tools/verify_artifacts.py": {
-      "size_bytes": 22068,
-      "sha256": "5d2c3f8dbdb5c1c29f216f54708a8f5a91965851e09bfbb08a2706333bc4d21f",
+      "size_bytes": 26419,
+      "sha256": "5853ffe6f9775abb0500bb6185c0b9b0a88c08ea39489016d4b7cf4d4c8a243f",
       "git_mode": "100755"
     }
   }
