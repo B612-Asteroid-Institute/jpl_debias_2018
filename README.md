@@ -1,22 +1,20 @@
 # jpl-debias-2018
 
-> [!CAUTION]
-> **PUBLIC REDISTRIBUTION IS BLOCKED.** The JPL archive contains no explicit
-> license, and this repository contains no applicable JPL/Caltech authorization
-> to reproduce or publicly redistribute the exact bundled data bytes. Do not
-> push this candidate to a public source repository, publish it to PyPI, upload
-> release artifacts, or create a public release until explicit authorization
-> has been obtained and reviewed. See [`NOTICE`](NOTICE).
+#### A Python data package by the Asteroid Institute, a program of the B612 Foundation
 
 `jpl-debias-2018` is a data-only Python package containing the JPL Solar
 System Dynamics EFCC18 astrometric catalog-debias table. It follows the same
 installed-resource convention as the Asteroid Institute kernel packages:
 import the package, then pass its exported filesystem path to the consumer.
 
+**This is not an official JPL package.** It is an Asteroid Institute mirror of
+the upstream files so that the table is installable via `pip`. The package
+preserves the upstream data byte-for-byte and records its complete provenance
+and cryptographic identity.
+
 The package contains no orbit-determination implementation, has no runtime
 dependencies, performs no network access at import or runtime, and does not
-recompute data identity at import. The candidate retains the table byte-for-byte as obtained from JPL; provenance
-does not itself grant redistribution rights.
+recompute data identity at import.
 
 ## Data identity
 
@@ -40,13 +38,13 @@ table is identified by the hash above.
 
 ## Installation
 
-Only after applicable redistribution authorization is documented and a reviewed release is published:
+Install the released package from PyPI:
 
 ```bash
 python -m pip install jpl-debias-2018
 ```
 
-Before publication, install a reviewed wheel directly:
+A reviewed wheel can also be installed directly:
 
 ```bash
 python -m pip install ./jpl_debias_2018-2023.3.1.1-py3-none-any.whl
@@ -161,16 +159,20 @@ filenames, complete ordered metadata headers and values, generated egg-info
 bytes, archive member and directory sets, and canonical container bytes. It
 does not provide a weaker payload-only verification mode.
 
-CI is pinned, read-only, artifact-only, and has no PyPI publisher credentials
-or publication job. Because its artifacts contain the blocked data bytes, the
-public repository and its workflows must not be initialized until applicable
-redistribution authorization is documented.
+CI is pinned, read-only, and artifact-only. It has no PyPI publisher
+credentials or publication job; promotion and publication remain separate
+reviewed release operations.
+
+## Acknowledgment
+
+This project makes use of data provided and maintained by the NASA Jet
+Propulsion Laboratory, California Institute of Technology.
 
 ## Licensing and attribution
 
-There is deliberately **no distribution-wide license expression**. The MIT
-terms in [`LICENSE`](LICENSE) apply only to Institute-authored packaging code
-and documentation. They do not apply to or relicense `bias.dat` or the
-upstream README. The JPL archive supplied no explicit license, and no
-applicable redistribution authorization is present. [`NOTICE`](NOTICE) and
-the packaged `SOURCE_MANIFEST.json` record this fail-closed status.
+This package uses normal Asteroid Institute MIT distribution metadata; see
+[`LICENSE`](LICENSE). The bundled `bias.dat` and upstream README are exact JPL
+source bytes, not Institute-authored data. [`NOTICE`](NOTICE) and the packaged
+`SOURCE_MANIFEST.json` preserve that attribution, the upstream identity, and
+the Institute's distribution-policy record. This package is not affiliated
+with or endorsed by JPL, NASA, or Caltech.

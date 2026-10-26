@@ -19,8 +19,8 @@
       "git_mode": "100644"
     },
     "LICENSE": {
-      "size_bytes": 1724,
-      "sha256": "5e7d192956bef5c02de4a40788c31e8c1c587f1cd941cd9febf297ac1f271332",
+      "size_bytes": 1080,
+      "sha256": "2dd2e9e733b9fa66504e33f857eb3f48ed7c0bbb7cb053ff729c03083bfa4c01",
       "git_mode": "100644"
     },
     "MANIFEST.in": {
@@ -29,23 +29,23 @@
       "git_mode": "100644"
     },
     "NOTICE": {
-      "size_bytes": 1250,
-      "sha256": "7bbc4a99396b95c9e0272ffe6bd35712fd976102df406d419d501c771eaafaa5",
+      "size_bytes": 1238,
+      "sha256": "af880816fbfd8caf53e22a2227a52c88c55f8febd0b618036b0032ab2c3cf935",
       "git_mode": "100644"
     },
     "README.md": {
-      "size_bytes": 7005,
-      "sha256": "da17c4cbbc3e5d18512cf9aca86955b3473d939143bf240e14759910e2233d22",
+      "size_bytes": 6735,
+      "sha256": "bbe9f179bed22147f5c28d9db36472e2cec592af355a8409917739293d88b6cd",
       "git_mode": "100644"
     },
     "pyproject.toml": {
-      "size_bytes": 1907,
-      "sha256": "cb0072526d809441b951e825312e8552fdb2d0f2c0d9e9ced3111eedcc694414",
+      "size_bytes": 1923,
+      "sha256": "734cd138802395b7716765b69fb05e69259e32c562b9b570101db74fb1bc36fc",
       "git_mode": "100644"
     },
     "src/jpl_debias_2018/SOURCE_MANIFEST.json": {
-      "size_bytes": 2283,
-      "sha256": "f454293684ffa3caae318b2d68776a576bc61e88edc4feb6e5bd7a3c178b3259",
+      "size_bytes": 2295,
+      "sha256": "b1557b4f797d2b76669fc5cb2c7d56988ab335fc0362a703668e87ce66662911",
       "git_mode": "100644"
     },
     "src/jpl_debias_2018/UPSTREAM_README.txt": {
@@ -74,8 +74,8 @@
       "git_mode": "100644"
     },
     "tests/test_package.py": {
-      "size_bytes": 4045,
-      "sha256": "8bd74aec8cd6c9bc7b454040f01939461af4f84eacae51772ef41db00905d80f",
+      "size_bytes": 4964,
+      "sha256": "e658231cf2fe834cd0bb351c0570ca4b8715ff92540f0c963956d848f3a00180",
       "git_mode": "100644"
     },
     "tests/test_refresh_data.py": {
@@ -84,8 +84,8 @@
       "git_mode": "100644"
     },
     "tests/test_verify_artifacts.py": {
-      "size_bytes": 9888,
-      "sha256": "60e3fa697e5aa5f86fdf0512d198a50f43406e76e69e3c242f90430b3010cd89",
+      "size_bytes": 10623,
+      "sha256": "ef38d34c862f9f6ed7b2defa2fec5f8f69b9c143c7e9df87607a012e8e263d33",
       "git_mode": "100644"
     },
     "tools/__init__.py": {
@@ -104,8 +104,8 @@
       "git_mode": "100755"
     },
     "tools/refresh_data.py": {
-      "size_bytes": 8389,
-      "sha256": "ffc32b2fca74fe0f8ec29fa7c0b4d8905371439b7e002fbaa2d046ea58cd6ce9",
+      "size_bytes": 8410,
+      "sha256": "791a36947cccc8c2481a5c6759a6071a121d1058e9820f007e8caa13a30f3194",
       "git_mode": "100755"
     },
     "tools/update_source_inventory.py": {
@@ -114,8 +114,8 @@
       "git_mode": "100755"
     },
     "tools/verify_artifacts.py": {
-      "size_bytes": 26419,
-      "sha256": "5853ffe6f9775abb0500bb6185c0b9b0a88c08ea39489016d4b7cf4d4c8a243f",
+      "size_bytes": 26447,
+      "sha256": "703fb11581fc89ef127a4bf3ada4f5df3e254c06c81cf87151f6521c4d31832d",
       "git_mode": "100755"
     }
   }

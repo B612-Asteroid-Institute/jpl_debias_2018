@@ -72,11 +72,11 @@
     }
   },
   "redistribution": {
-    "status": "blocked",
-    "public_redistribution_authorized": false,
+    "status": "authorized",
+    "public_redistribution_authorized": true,
     "data_license": null,
-    "authorization_reference": null,
-    "code_and_documentation_license": "MIT (scoped by LICENSE)",
-    "reason": "The upstream archive contains no explicit license and this repository contains no applicable JPL/Caltech authorization for public redistribution of the exact data bytes."
+    "authorization_reference": "Asteroid Institute distribution approval, 2026-10-26",
+    "code_and_documentation_license": "MIT",
+    "reason": "The Asteroid Institute approved public distribution of these exact publicly funded JPL data bytes under its established unofficial JPL mirror policy."
   }
 }

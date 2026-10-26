@@ -87,14 +87,35 @@ def test_distribution_has_no_runtime_dependencies() -> None:
     assert metadata.version("jpl-debias-2018") == data.__version__
 
 
-def test_redistribution_and_distribution_license_fail_closed() -> None:
+def test_redistribution_and_distribution_license_are_explicit() -> None:
     redistribution = _manifest()["redistribution"]
-    assert redistribution["status"] == "blocked"
-    assert redistribution["public_redistribution_authorized"] is False
+    assert redistribution["status"] == "authorized"
+    assert redistribution["public_redistribution_authorized"] is True
     assert redistribution["data_license"] is None
-    assert redistribution["authorization_reference"] is None
+    assert redistribution["authorization_reference"] == (
+        "Asteroid Institute distribution approval, 2026-10-26"
+    )
+    assert redistribution["code_and_documentation_license"] == "MIT"
 
     distribution = metadata.distribution("jpl-debias-2018")
     assert distribution.metadata.get_all("License") is None
-    assert distribution.metadata.get_all("License-Expression") is None
+    assert distribution.metadata.get_all("License-Expression") == ["MIT"]
     assert set(distribution.metadata.get_all("License-File") or []) == {"LICENSE", "NOTICE"}
+
+
+def test_public_mirror_language_and_attribution() -> None:
+    root = Path(__file__).resolve().parents[1]
+    readme = (root / "README.md").read_text(encoding="utf-8")
+    notice = (root / "NOTICE").read_text(encoding="utf-8")
+    combined = readme + "\n" + notice
+    assert "PUBLIC REDISTRIBUTION IS BLOCKED" not in combined
+    assert "PUBLIC REDISTRIBUTION BLOCKED" not in combined
+    assert "This is not an official JPL package" in readme
+    assert "installable via `pip`" in readme
+    acknowledgment = (
+        "data provided and maintained by the NASA Jet\n"
+        "Propulsion Laboratory, California Institute of Technology"
+    )
+    assert acknowledgment in readme
+    assert acknowledgment in notice
+    assert "does not claim Institute\nauthorship" in notice

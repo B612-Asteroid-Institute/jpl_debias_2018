@@ -114,6 +114,10 @@ def test_wheel_rejects_identity_file_mutations(path: str, replacement: bytes) ->
     "mutation",
     [
         lambda value: value.replace(b"Name: jpl-debias-2018", b"Name: forged"),
+        lambda value: value.replace(b"License-Expression: MIT", b"License-Expression: GPL-3.0"),
+        lambda value: value.replace(
+            b"License-Expression: MIT", b"License-Expression: MIT\nLicense-Expression: MIT"
+        ),
         lambda value: value.replace(
             b"Keywords: astronomy,astrometry,asteroids,catalog,debiasing,JPL",
             b"Keywords: FORGED-UNATTESTED",
@@ -188,6 +192,10 @@ def test_valid_sdist_contract() -> None:
         ),
         (
             f"{verifier.EGG_INFO}/PKG-INFO",
+            lambda value: value.replace(b"License-Expression: MIT", b"License-Expression: GPL-3.0"),
+        ),
+        (
+            f"{verifier.EGG_INFO}/PKG-INFO",
             lambda value: value.replace(
                 b"Dynamic: license-file", b"Dynamic: license-file\nX-Forged: yes"
             ),
@@ -227,6 +235,10 @@ def test_sdist_rejects_noncanonical_metadata(tmp_path: Path) -> None:
         lambda value: value["resources"]["bias.dat"].update(line_count=1),
         lambda value: value["resources"]["bias.dat"].update(bias_version_date="1900-01-01"),
         lambda value: value["resources"]["bias.dat"].update(catalog_codes=["x"]),
+        lambda value: value["redistribution"].update(status="blocked"),
+        lambda value: value["redistribution"].update(public_redistribution_authorized=False),
+        lambda value: value["redistribution"].update(data_license="forged"),
+        lambda value: value["redistribution"].update(authorization_reference="forged"),
         lambda value: value["redistribution"].update(reason="forged"),
         lambda value: value["redistribution"].update(code_and_documentation_license="forged"),
         lambda value: value.update(unexpected=True),

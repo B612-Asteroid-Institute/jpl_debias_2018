@@ -124,15 +124,14 @@ EXPECTED_DATA_MANIFEST: dict[str, Any] = {
         },
     },
     "redistribution": {
-        "status": "blocked",
-        "public_redistribution_authorized": False,
+        "status": "authorized",
+        "public_redistribution_authorized": True,
         "data_license": None,
-        "authorization_reference": None,
-        "code_and_documentation_license": "MIT (scoped by LICENSE)",
+        "authorization_reference": "Asteroid Institute distribution approval, 2026-10-26",
+        "code_and_documentation_license": "MIT",
         "reason": (
-            "The upstream archive contains no explicit license and this repository contains no "
-            "applicable JPL/Caltech authorization for public "
-            "redistribution of the exact data bytes."
+            "The Asteroid Institute approved public distribution of these exact publicly funded "
+            "JPL data bytes under its established unofficial JPL mirror policy."
         ),
     },
 }
@@ -143,6 +142,7 @@ EXPECTED_METADATA_HEADERS = (
     "Version: 2023.3.1.1",
     "Summary: JPL EFCC18 astrometric catalog-debias reference data",
     "Author-email: B612 Asteroid Institute <info@b612foundation.org>",
+    "License-Expression: MIT",
     "Project-URL: Homepage, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
     "Project-URL: Repository, https://github.com/B612-Asteroid-Institute/jpl_debias_2018",
     "Project-URL: Upstream data, https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",

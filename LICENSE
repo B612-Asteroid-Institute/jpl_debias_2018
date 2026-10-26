@@ -1,17 +1,3 @@
-LICENSE SCOPE NOTICE
-====================
-
-The MIT terms below apply only to the packaging code and Institute-authored
-documentation in this repository. They do not apply to, relicense, or grant
-any right to reproduce or redistribute the bundled JPL data files
-`bias.dat` and `UPSTREAM_README.txt`.
-
-The upstream archive supplied no license for those data bytes, and this
-repository does not currently contain applicable JPL/Caltech redistribution
-authorization. Public source distribution, wheel/sdist publication, and
-artifact release are therefore blocked pending explicit authorization. See
-NOTICE for the data provenance and restriction.
-
 MIT License
 
 Copyright (c) 2026 B612 Asteroid Institute

@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Fail-closed maintainer tool for verifying the fixed JPL authority.
 
-This tool is for local verification only. It does not grant redistribution
-rights and must not be used by package import, installation, or OD runtime.
+This tool is for local identity verification only. It does not change the
+packaged distribution policy and must not be used by package import,
+installation, or OD runtime.
 """
 
 from __future__ import annotations
