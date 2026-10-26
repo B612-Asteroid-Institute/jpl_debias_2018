@@ -9,8 +9,8 @@
       "git_mode": "100644"
     },
     ".github/workflows/build-test.yml": {
-      "size_bytes": 4042,
-      "sha256": "15d0f3f98644e036605b265f9206fee0f4d67d89fad13a942d41273c8d872b5b",
+      "size_bytes": 4043,
+      "sha256": "bdd86657f3fbfb44a1e09a7c28db1be73923ebb682cee5b4c17e3841c7137f20",
       "git_mode": "100644"
     },
     ".gitignore": {
@@ -74,8 +74,8 @@
       "git_mode": "100644"
     },
     "tests/test_package.py": {
-      "size_bytes": 4964,
-      "sha256": "e658231cf2fe834cd0bb351c0570ca4b8715ff92540f0c963956d848f3a00180",
+      "size_bytes": 5988,
+      "sha256": "3bfd4cb2d251c115e4aafc0f8e56d7755cc77000542a51826277011f24e3fa06",
       "git_mode": "100644"
     },
     "tests/test_refresh_data.py": {

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import hashlib
 import json
+import tomllib
 from importlib import metadata, resources
 from pathlib import Path
 from typing import Any
@@ -103,13 +104,35 @@ def test_redistribution_and_distribution_license_are_explicit() -> None:
     assert set(distribution.metadata.get_all("License-File") or []) == {"LICENSE", "NOTICE"}
 
 
-def test_public_mirror_language_and_attribution() -> None:
+def test_public_mirror_language_attribution_and_ci_policy() -> None:
     root = Path(__file__).resolve().parents[1]
     readme = (root / "README.md").read_text(encoding="utf-8")
     notice = (root / "NOTICE").read_text(encoding="utf-8")
-    combined = readme + "\n" + notice
-    assert "PUBLIC REDISTRIBUTION IS BLOCKED" not in combined
-    assert "PUBLIC REDISTRIBUTION BLOCKED" not in combined
+    workflow = (root / ".github/workflows/build-test.yml").read_text(encoding="utf-8")
+    pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    license_expression = pyproject["project"]["license"]
+    assert license_expression == "MIT"
+    assert (
+        f'assert distribution.metadata.get("License-Expression") == "{license_expression}"'
+        in workflow
+    )
+    assert 'distribution.metadata.get("License-Expression") is None' not in workflow
+
+    policy_paths = [
+        root / "README.md",
+        root / "LICENSE",
+        root / "NOTICE",
+        root / "pyproject.toml",
+        root / "src/jpl_debias_2018/SOURCE_MANIFEST.json",
+        root / "tools/refresh_data.py",
+        root / "tools/verify_artifacts.py",
+        *sorted((root / ".github").rglob("*.yml")),
+        *sorted((root / ".github").rglob("*.yaml")),
+    ]
+    policy_text = "\n".join(path.read_text(encoding="utf-8") for path in policy_paths)
+    assert "PUBLIC REDISTRIBUTION IS BLOCKED" not in policy_text
+    assert "PUBLIC REDISTRIBUTION BLOCKED" not in policy_text
+    assert "redistribution authorization is present" not in policy_text
     assert "This is not an official JPL package" in readme
     assert "installable via `pip`" in readme
     acknowledgment = (

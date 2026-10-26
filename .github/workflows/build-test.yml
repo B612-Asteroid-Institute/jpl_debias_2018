@@ -99,7 +99,7 @@ jobs:
           assert data.SOURCE_ARCHIVE_SHA256 == "288132cefea7f1bdf0989782db1173948dd7dfef7da31910be90b16b73cfea6c"
           distribution = metadata.distribution("jpl-debias-2018")
           assert distribution.metadata.get("License") is None
-          assert distribution.metadata.get("License-Expression") is None
+          assert distribution.metadata.get("License-Expression") == "MIT"
           assert all("extra ==" in value for value in (distribution.requires or []))
           PY
       - name: Upload reviewed build inputs
