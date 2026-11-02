@@ -66,30 +66,30 @@ print(bias_path)
 `bias_dat` is an absolute `str` path. It can be passed directly across PyO3,
 C FFI, subprocess, or CLI boundaries just like `naif_de440.de440`.
 
-## Standalone Rust use
+## Filesystem path for non-Python consumers
 
-The Rust implementation receives a path; it does not need to know about
-Python packaging and must not import or discover Python packages. Deployment
-can obtain the path from an installed wheel:
+The package's native-consumer contract is only the absolute filesystem path.
+A deployment with the wheel installed can obtain it during provisioning:
 
 ```bash
 BIAS_DAT="$(python -c 'import jpl_debias_2018; print(jpl_debias_2018.bias_dat)')"
-cargo run --release -- --efcc18-bias-dat "$BIAS_DAT"
+printf '%s\n' "$BIAS_DAT"
 ```
 
-Or unpack the wheel as a data artifact and pass the contained file without a
-Python runtime:
+The wheel can instead be unpacked as a data artifact during provisioning:
 
 ```bash
-python -m zipfile -e jpl_debias_2018-2023.3.1.1-py3-none-any.whl ./od-data
-cargo run --release -- \
-  --efcc18-bias-dat ./od-data/jpl_debias_2018/bias.dat \
-  --efcc18-bias-sha256 ef6a50830bb83d8b1161e7acb391eed988ea9708e9fbcccc0c834da6109476e3
+python -m zipfile --extract \
+  jpl_debias_2018-2023.3.1.1-py3-none-any.whl ./od-data
+BIAS_DAT="$(cd ./od-data && pwd)/jpl_debias_2018/bias.dat"
+printf '%s\n' "$BIAS_DAT"
 ```
 
-The Rust client should validate the expected SHA-256 at its data-ingress
-boundary, then parse the file with Core's `Efcc18BiasTable::parse_bias_dat`.
-It should not download the table during OD.
+A consuming program, including a standalone Rust program, receives that
+explicit path through its own configuration. The consumer should validate the
+expected size and SHA-256 at its data-ingress boundary before parsing the file,
+and should not download the table during scientific execution. This data
+package does not define a consumer CLI or Rust API.
 
 ## What the table contains
 
