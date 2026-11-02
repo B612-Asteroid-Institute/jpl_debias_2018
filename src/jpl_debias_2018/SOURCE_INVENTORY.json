@@ -39,8 +39,8 @@
       "git_mode": "100644"
     },
     "README.md": {
-      "size_bytes": 7007,
-      "sha256": "5aba2a95439b953f5c8efa7726eab857416211240208579195bedb5ad34973b3",
+      "size_bytes": 6918,
+      "sha256": "63f16625d9a48b8199cfc03da5612010c15dbc0e0783b3331f2cf80549f47bc9",
       "git_mode": "100644"
     },
     "pyproject.toml": {

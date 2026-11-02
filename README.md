@@ -58,13 +58,9 @@ supported because a real filesystem path is part of the public contract.
 ```python
 import jpl_debias_2018
 
-jpl_debias_2018.bias_dat
+bias_path = jpl_debias_2018.bias_dat
+print(bias_path)
 # '/.../site-packages/jpl_debias_2018/bias.dat'
-
-native_od.load_efcc18_bias_dat(
-    jpl_debias_2018.bias_dat,
-    expected_sha256=jpl_debias_2018.BIAS_DAT_SHA256,
-)
 ```
 
 `bias_dat` is an absolute `str` path. It can be passed directly across PyO3,
