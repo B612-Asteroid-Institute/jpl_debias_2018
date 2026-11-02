@@ -159,9 +159,12 @@ filenames, complete ordered metadata headers and values, generated egg-info
 bytes, archive member and directory sets, and canonical container bytes. It
 does not provide a weaker payload-only verification mode.
 
-CI is pinned, read-only, and artifact-only. It has no PyPI publisher
-credentials or publication job; promotion and publication remain separate
-reviewed release operations.
+Normal CI is pinned, read-only, and artifact-only. The standard manually
+dispatched/callable publication workflow reuses the exact artifacts produced
+by that complete validation workflow without rebuilding them, then publishes
+through PyPI trusted publishing with no long-lived upload credential. Creating
+the protected `pypi` environment, configuring the trusted publisher, and
+dispatching a release remain separate reviewed owner operations.
 
 ## Acknowledgment
 

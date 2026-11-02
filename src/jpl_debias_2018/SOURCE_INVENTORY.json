@@ -8,9 +8,14 @@
       "sha256": "2c154abb183bff5b9e98e7695411e365383891634c43c221076bece6aeafa523",
       "git_mode": "100644"
     },
-    ".github/workflows/build-test.yml": {
-      "size_bytes": 4043,
-      "sha256": "bdd86657f3fbfb44a1e09a7c28db1be73923ebb682cee5b4c17e3841c7137f20",
+    ".github/workflows/build_test.yml": {
+      "size_bytes": 4060,
+      "sha256": "6568a42b4cd220664d6b44bb5c2b0853eff286155cc14c48e8efea0074aa7b83",
+      "git_mode": "100644"
+    },
+    ".github/workflows/build_test_publish.yml": {
+      "size_bytes": 885,
+      "sha256": "7d45a0d4c926150f09632db35f51c36cc3998cbb0162f5af05a3fc981a6e409f",
       "git_mode": "100644"
     },
     ".gitignore": {
@@ -34,8 +39,8 @@
       "git_mode": "100644"
     },
     "README.md": {
-      "size_bytes": 6735,
-      "sha256": "bbe9f179bed22147f5c28d9db36472e2cec592af355a8409917739293d88b6cd",
+      "size_bytes": 7007,
+      "sha256": "5aba2a95439b953f5c8efa7726eab857416211240208579195bedb5ad34973b3",
       "git_mode": "100644"
     },
     "pyproject.toml": {
@@ -74,8 +79,8 @@
       "git_mode": "100644"
     },
     "tests/test_package.py": {
-      "size_bytes": 5988,
-      "sha256": "3bfd4cb2d251c115e4aafc0f8e56d7755cc77000542a51826277011f24e3fa06",
+      "size_bytes": 7047,
+      "sha256": "4794fd5d02cc246d30050edcce2dd248ff266b0776cac1f9b08ce91e2df6047c",
       "git_mode": "100644"
     },
     "tests/test_refresh_data.py": {

@@ -108,7 +108,7 @@ def test_public_mirror_language_attribution_and_ci_policy() -> None:
     root = Path(__file__).resolve().parents[1]
     readme = (root / "README.md").read_text(encoding="utf-8")
     notice = (root / "NOTICE").read_text(encoding="utf-8")
-    workflow = (root / ".github/workflows/build-test.yml").read_text(encoding="utf-8")
+    workflow = (root / ".github/workflows/build_test.yml").read_text(encoding="utf-8")
     pyproject = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
     license_expression = pyproject["project"]["license"]
     assert license_expression == "MIT"
@@ -142,3 +142,27 @@ def test_public_mirror_language_attribution_and_ci_policy() -> None:
     assert acknowledgment in readme
     assert acknowledgment in notice
     assert "does not claim Institute\nauthorship" in notice
+
+
+def test_ci_uses_standard_build_test_and_trusted_publish_workflows() -> None:
+    root = Path(__file__).resolve().parents[1]
+    build_test = (root / ".github/workflows/build_test.yml").read_text(encoding="utf-8")
+    publish = (root / ".github/workflows/build_test_publish.yml").read_text(encoding="utf-8")
+
+    assert "pull_request:" in build_test
+    assert "push:" in build_test
+    assert "workflow_call:" in build_test
+    assert "python tools/check_reproducible_builds.py" in build_test
+    assert "python tools/build_release.py" in build_test
+    assert "python tools/verify_artifacts.py" in build_test
+
+    assert "workflow_dispatch:" in publish
+    assert "workflow_call:" in publish
+    assert "uses: ./.github/workflows/build_test.yml" in publish
+    assert "id-token: write" in publish
+    assert "environment: pypi" in publish
+    assert "pypa/gh-action-pypi-publish@" in publish
+    assert "packages-dir: dist/" in publish
+    assert "tools/build_release.py" not in publish
+    assert "curl " not in publish
+    assert "wget " not in publish
