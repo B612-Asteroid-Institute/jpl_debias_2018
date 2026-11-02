@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+build/
+dist/
+*.egg-info/
+*.tgz
+.DS_Store
+
+# Interrupted setuptools sdist staging directories.
+/jpl_debias_2018-*/

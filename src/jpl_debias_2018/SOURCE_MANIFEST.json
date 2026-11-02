@@ -1,0 +1,82 @@
+{
+  "schema_version": 1,
+  "distribution": "jpl-debias-2018",
+  "package_version": "2023.3.1.1",
+  "source": {
+    "url": "https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz",
+    "archive_name": "debias_2018.tgz",
+    "archive_size_bytes": 9852628,
+    "archive_sha256": "288132cefea7f1bdf0989782db1173948dd7dfef7da31910be90b16b73cfea6c",
+    "http_last_modified": "2023-03-01T22:24:39Z",
+    "archive_members": {
+      "README.txt": {
+        "size_bytes": 1606,
+        "sha256": "946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec",
+        "packaged_as": "UPSTREAM_README.txt"
+      },
+      "bias.dat": {
+        "size_bytes": 37161151,
+        "sha256": "ef6a50830bb83d8b1161e7acb391eed988ea9708e9fbcccc0c834da6109476e3",
+        "packaged_as": "bias.dat"
+      },
+      "tiles.dat": {
+        "size_bytes": 1622072,
+        "sha256": "ccb313f0f04f49f0158b915b7ca997b91bba50192a808ba590a32e99a91eefa6",
+        "packaged_as": null
+      }
+    }
+  },
+  "resources": {
+    "bias.dat": {
+      "size_bytes": 37161151,
+      "sha256": "ef6a50830bb83d8b1161e7acb391eed988ea9708e9fbcccc0c834da6109476e3",
+      "line_count": 49175,
+      "bias_version": "3.0",
+      "bias_version_date": "2018-09-21",
+      "archive_update_date": "2023-03-01",
+      "nside": 64,
+      "npix": 49152,
+      "catalog_codes": [
+        "a",
+        "b",
+        "c",
+        "d",
+        "e",
+        "g",
+        "i",
+        "j",
+        "l",
+        "m",
+        "n",
+        "o",
+        "p",
+        "q",
+        "r",
+        "t",
+        "u",
+        "v",
+        "w",
+        "L",
+        "N",
+        "Q",
+        "R",
+        "S",
+        "U",
+        "Y"
+      ]
+    },
+    "UPSTREAM_README.txt": {
+      "archive_member": "README.txt",
+      "size_bytes": 1606,
+      "sha256": "946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec"
+    }
+  },
+  "redistribution": {
+    "status": "authorized",
+    "public_redistribution_authorized": true,
+    "data_license": null,
+    "authorization_reference": "Asteroid Institute distribution approval, 2026-10-26",
+    "code_and_documentation_license": "MIT",
+    "reason": "The Asteroid Institute approved public distribution of these exact publicly funded JPL data bytes under its established unofficial JPL mirror policy."
+  }
+}

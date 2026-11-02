@@ -1,0 +1,28 @@
+UNOFFICIAL JPL DATA MIRROR
+==========================
+
+This is not an official JPL package. The Asteroid Institute distributes this
+mirror so that the JPL EFCC18 astrometric catalog-debias table can be installed
+as an immutable Python data package. This package is not affiliated with or
+endorsed by JPL, NASA, or Caltech.
+
+This project makes use of data provided and maintained by the NASA Jet
+Propulsion Laboratory, California Institute of Technology. The bundled source
+bytes were obtained from the NASA/JPL Solar System Dynamics service:
+
+  https://ssd.jpl.nasa.gov/ftp/ssd/debias/debias_2018.tgz
+
+Bundled upstream files:
+
+- `bias.dat`, SHA-256
+  `ef6a50830bb83d8b1161e7acb391eed988ea9708e9fbcccc0c834da6109476e3`
+- `UPSTREAM_README.txt` (archive member `README.txt`), SHA-256
+  `946823b4ca7b7a9f79a3feff3410f587ed1dd2662f5296ee379980ec3f759dec`
+
+The package preserves those files byte-for-byte and does not claim Institute
+authorship of them. The MIT license describes the Institute-authored packaging
+software and documentation; it does not alter the upstream attribution or
+provenance recorded here and in `SOURCE_MANIFEST.json`.
+
+The upstream README credits Eggl et al. (2020, Icarus) for details of the
+catalog-debiasing method.
