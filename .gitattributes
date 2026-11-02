@@ -1,0 +1,3 @@
+# Preserve upstream authorities byte-for-byte and suppress enormous/whitespace-only diffs.
+src/jpl_debias_2018/bias.dat -text -diff
+src/jpl_debias_2018/UPSTREAM_README.txt -text -diff
